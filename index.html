@@ -1,0 +1,377 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moovit Route Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        .control-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .url-input {
+            width: 80%;
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .scrape-button {
+            padding: 10px 15px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+            .scrape-button:hover {
+                background-color: #3367d6;
+            }
+
+            .scrape-button:disabled {
+                background-color: #cccccc;
+                cursor: not-allowed;
+            }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .results-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: auto;
+        }
+
+        .route-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .route-header {
+            background-color: #4285f4;
+            color: white;
+            padding: 10px 15px;
+            font-weight: bold;
+        }
+
+        .route-content {
+            padding: 15px;
+        }
+
+            .route-content pre {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                background-color: #f5f5f5;
+                padding: 10px;
+                border-radius: 4px;
+                overflow: auto;
+                max-height: 300px;
+            }
+
+        .route-preview {
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+
+        .error {
+            background-color: #fde8e8;
+            color: #c53030;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 2s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .api-url-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 4px;
+        }
+
+        .api-url-input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .accordion {
+            background-color: #f1f1f1;
+            color: #444;
+            cursor: pointer;
+            padding: 18px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+            transition: 0.4s;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+
+            .active, .accordion:hover {
+                background-color: #ddd;
+            }
+
+        .panel {
+            padding: 0 18px;
+            background-color: white;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <h1>Moovit Route Viewer</h1>
+
+    <div class="control-panel">
+        <h2>Control Panel</h2>
+
+        <button class="accordion">Configure API Connection</button>
+        <div class="panel">
+            <div class="api-url-container">
+                <label for="apiUrlInput">Backend API URL:</label>
+                <input type="text" id="apiUrlInput" class="api-url-input" placeholder="Enter your backend API URL (e.g., https://your-backend.herokuapp.com/scrape)">
+                <p><small>Your API URL is saved locally and never transmitted beyond the necessary API call.</small></p>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <input type="text" id="urlInput" class="url-input" placeholder="Enter Moovit URL" value="https://moovitapp.com/israel-1/poi/%D7%94%D7%92%D7%A0%D7%99%D7%9D%2017/%D7%AA%D7%99%D7%9B%D7%95%D7%9F%20%D7%A8%D7%95%D7%98%D7%91%D7%A8%D7%92/he?customerId=4908&tll=32.125292_34.819943&fll=32.134469_34.841899">
+            <button id="scrapeButton" class="scrape-button">Scrape Routes</button>
+        </div>
+        <div class="status" id="status">Ready to scrape. Click the button to start.</div>
+    </div>
+
+    <div class="results-container" id="resultsContainer">
+        <h2>Results</h2>
+        <div id="results">
+            <div class="loading">No results yet. Start scraping to see route information.</div>
+        </div>
+    </div>
+
+    <!-- Instructions section -->
+    <div style="margin-top: 30px; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        <h2>How to Use This Tool</h2>
+        <ol>
+            <li>Set up your backend API URL in the configuration panel.</li>
+            <li>Enter a Moovit URL in the input field.</li>
+            <li>Click "Scrape Routes" to fetch and display route information.</li>
+        </ol>
+
+        <h3>Setting Up Your Own Backend</h3>
+        <p>This tool requires a backend service to run the Selenium scraper. Follow these steps to set up your own:</p>
+        <ol>
+            <li>Clone the backend repository from <a href="https://github.com/your-username/moovit-scraper-backend" target="_blank">GitHub</a>.</li>
+            <li>Deploy it to a hosting service like Render, Railway, or Heroku.</li>
+            <li>Copy the deployed API URL and enter it in the configuration panel above.</li>
+        </ol>
+    </div>
+
+    <footer style="margin-top: 30px; text-align: center; color: #666; font-size: 0.8em;">
+        <p>Moovit Route Viewer - Not affiliated with Moovit</p>
+        <p>Created for educational purposes only</p>
+    </footer>
+
+    <script>
+        // Load saved API URL from local storage
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedApiUrl = localStorage.getItem('moovitApiUrl');
+            if (savedApiUrl) {
+                document.getElementById('apiUrlInput').value = savedApiUrl;
+            }
+
+            // Set up accordion
+            const acc = document.getElementsByClassName("accordion");
+            for (let i = 0; i < acc.length; i++) {
+                acc[i].addEventListener("click", function() {
+                    this.classList.toggle("active");
+                    const panel = this.nextElementSibling;
+                    if (panel.style.maxHeight) {
+                        panel.style.maxHeight = null;
+                    } else {
+                        panel.style.maxHeight = panel.scrollHeight + "px";
+                    }
+                });
+            }
+        });
+
+        // Save API URL when changed
+        document.getElementById('apiUrlInput').addEventListener('change', function() {
+            localStorage.setItem('moovitApiUrl', this.value);
+        });
+
+        // Function to update status
+        function updateStatus(message, isError = false) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            if (isError) {
+                statusEl.classList.add('error');
+            } else {
+                statusEl.classList.remove('error');
+            }
+        }
+
+        // Function to display results
+        function displayResults(routeDivs) {
+            const resultsEl = document.getElementById('results');
+
+            if (!routeDivs || routeDivs.length === 0) {
+                resultsEl.innerHTML = '<div class="loading">No route information found.</div>';
+                return;
+            }
+
+            let resultsHTML = '';
+
+            routeDivs.forEach((div, index) => {
+                resultsHTML += `
+                    <div class="route-card">
+                        <div class="route-header">Route #${index + 1}</div>
+                        <div class="route-content">
+                            <h3>HTML Source:</h3>
+                            <pre>${escapeHtml(div)}</pre>
+                            <div class="route-preview">
+                                <h3>Visual Preview:</h3>
+                                <div>${div}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            resultsEl.innerHTML = resultsHTML;
+        }
+
+        // Helper function to escape HTML for display
+        function escapeHtml(html) {
+            const div = document.createElement('div');
+            div.textContent = html;
+            return div.innerHTML;
+        }
+
+        // Function to call the backend API
+        async function callScraperAPI(url) {
+            const apiUrl = document.getElementById('apiUrlInput').value.trim();
+
+            if (!apiUrl) {
+                throw new Error("Please configure your backend API URL in the settings panel");
+            }
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url })
+            });
+
+            if (!response.ok) {
+                let errorMessage = "API request failed";
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    errorMessage += ` (${response.status})`;
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            return data.routes || [];
+        }
+
+        // Event listener for the scrape button
+        document.getElementById('scrapeButton').addEventListener('click', async () => {
+            const url = document.getElementById('urlInput').value.trim();
+            const scrapeButton = document.getElementById('scrapeButton');
+
+            if (!url) {
+                updateStatus("Please enter a valid URL", true);
+                return;
+            }
+
+            if (!url.includes('moovitapp.com')) {
+                updateStatus("URL must be from moovitapp.com", true);
+                return;
+            }
+
+            try {
+                // Disable button and show loading status
+                scrapeButton.disabled = true;
+                updateStatus('<div class="loader"></div> Scraping in progress. This may take up to 30 seconds...');
+                document.getElementById('results').innerHTML = '<div class="loading">Scraping in progress. Please wait...</div>';
+
+                const routeDivs = await callScraperAPI(url);
+                displayResults(routeDivs);
+                updateStatus("Scraping completed! Found " + routeDivs.length + " routes.");
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, true);
+                document.getElementById('results').innerHTML = '<div class="loading">An error occurred during scraping.</div>';
+            } finally {
+                // Re-enable button
+                scrapeButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
