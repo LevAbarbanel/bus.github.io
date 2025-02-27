@@ -42,7 +42,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY app.py .
-COPY scraper.py .
+# COPY scraper.py .  (commented out or removed)
 
 # Set environment variables
 ENV CHROME_BIN=/usr/bin/google-chrome-stable
