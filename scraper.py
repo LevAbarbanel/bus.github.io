@@ -43,20 +43,19 @@ def scrape_moovit_routes(url):
     # Initialize a list to store the results
     results = []
 
-   try:
-    # For deployment platforms that have their own Chrome binary
-    if os.environ.get('CHROMEDRIVER_PATH'):
-        driver = webdriver.Chrome(
-            service=Service(os.environ.get('CHROMEDRIVER_PATH')),
-            options=chrome_options
-        )
-    else:
-        # For local development or controlled environments
-        from webdriver_manager.chrome import ChromeDriverManager
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager(version="114.0.5735.90").install()),
-            options=chrome_options
-        )
+    try:
+        # For deployment platforms that have their own Chrome binary
+        if os.environ.get('CHROMEDRIVER_PATH'):
+            driver = webdriver.Chrome(
+                service=Service(os.environ.get('CHROMEDRIVER_PATH')),
+                options=chrome_options
+            )
+        else:
+            # For local development or controlled environments
+            driver = webdriver.Chrome(
+                service=Service(ChromeDriverManager(version="114.0.5735.90").install()),
+                options=chrome_options
+            )
 
         # Execute CDP command to modify navigator.webdriver flag
         driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
