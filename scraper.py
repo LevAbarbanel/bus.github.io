@@ -30,6 +30,7 @@ def scrape_moovit_routes(url):
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
+    chrome_options.add_argument("--remote-debugging-port=9222")
 
     # Add realistic user agent
     chrome_options.add_argument(
@@ -45,17 +46,8 @@ def scrape_moovit_routes(url):
 
     try:
         # For deployment platforms that have their own Chrome binary
-        if os.environ.get('CHROMEDRIVER_PATH'):
-            driver = webdriver.Chrome(
-                service=Service(os.environ.get('CHROMEDRIVER_PATH')),
-                options=chrome_options
-            )
-        else:
-            # For local development or controlled environments
-            driver = webdriver.Chrome(
-                service=Service(ChromeDriverManager(version="114.0.5735.90").install()),
-                options=chrome_options
-            )
+      driver = webdriver.Chrome(options=chrome_options)
+
 
         # Execute CDP command to modify navigator.webdriver flag
         driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
