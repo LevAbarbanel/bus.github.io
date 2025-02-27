@@ -2,10 +2,12 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.service import utils
 import time
 import re
 import os
+import subprocess
+import shutil
 
 
 def scrape_moovit_routes(url):
@@ -34,7 +36,7 @@ def scrape_moovit_routes(url):
 
     # Add realistic user agent
     chrome_options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
     )
 
     # Support for running in containerized environments
@@ -45,74 +47,56 @@ def scrape_moovit_routes(url):
     results = []
 
     try:
-        # Let Chrome find a compatible driver automatically
-        driver = webdriver.Chrome(options=chrome_options)
-
-        # Execute CDP command to modify navigator.webdriver flag
-        driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
-            'source': '''
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined
-                })
-            '''
-        })
-
-        # Navigate to the URL
-        print(f"Navigating to URL...")
-        driver.get(url)
-
-        # Wait for page to load
-        print("Waiting for page to load...")
-        time.sleep(15)  # Allow time for dynamic content to load
-
-        # Log page title for debugging
-        print(f"Page title: {driver.title}")
-
-        # Try multiple search strategies to find route-inner divs
-        route_inner_divs = []
-
-        # Strategy 1: Direct class search
-        print("Trying Strategy 1: Direct class search")
-        direct_search = driver.find_elements(By.CLASS_NAME, "route-inner")
-        if direct_search:
-            print(f"  Found {len(direct_search)} divs with direct class search")
-            route_inner_divs = direct_search
-
-        # Strategy 2: CSS Selector (if Strategy 1 failed)
-        if not route_inner_divs:
-            print("Trying Strategy 2: CSS Selector")
-            css_search = driver.find_elements(By.CSS_SELECTOR, "div.route-inner")
-            if css_search:
-                print(f"  Found {len(css_search)} divs with CSS selector")
-                route_inner_divs = css_search
-
-        # Strategy 3: XPath (if previous strategies failed)
-        if not route_inner_divs:
-            print("Trying Strategy 3: XPath")
-            xpath_search = driver.find_elements(By.XPATH, "//div[contains(@class, 'route-inner')]")
-            if xpath_search:
-                print(f"  Found {len(xpath_search)} divs with XPath")
-                route_inner_divs = xpath_search
-
-        # If we found divs with any strategy, extract their HTML
-        if route_inner_divs:
-            print(f"Processing {len(route_inner_divs)} route divs...")
-            for div in route_inner_divs:
-                results.append(div.get_attribute('outerHTML'))
+        # Fallback approach using direct HTML fetching
+        print("Using fallback approach with direct HTML fetching")
+        
+        # Get Chrome version for debugging
+        try:
+            chrome_version_cmd = "google-chrome --version"
+            chrome_version = subprocess.check_output(chrome_version_cmd, shell=True).decode('utf-8').strip()
+            print(f"Chrome version: {chrome_version}")
+        except:
+            print("Could not determine Chrome version")
+        
+        # Create a simple crawler function to get the HTML content
+        import urllib.request
+        
+        def get_html(url):
+            req = urllib.request.Request(
+                url, 
+                data=None, 
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
+                }
+            )
+            with urllib.request.urlopen(req) as response:
+                return response.read().decode('utf-8')
+        
+        # Get the page content
+        print(f"Fetching page content from: {url}")
+        page_content = get_html(url)
+        
+        # Look for route-inner divs using regex
+        print("Searching for route-inner divs in page content")
+        route_inner_pattern = re.compile(r'<div class="route-inner">.*?</div>', re.DOTALL)
+        matches = route_inner_pattern.findall(page_content)
+        
+        if matches:
+            print(f"Found {len(matches)} divs using regex pattern")
+            results = matches
         else:
-            # Strategy 4: Extract using regex from page source if all else fails
-            print("Trying Strategy 4: Regex extraction from page source")
-            page_source = driver.page_source
-            print(f"Page source contains 'route-inner': {'route-inner' in page_source}")
-
-            route_inner_pattern = re.compile(r'<div class="route-inner">.*?</div>', re.DOTALL)
-            matches = route_inner_pattern.findall(page_source)
-
+            print("No divs found using regex extraction")
+            
+            # Try a more lenient pattern
+            print("Trying more lenient pattern")
+            route_inner_pattern = re.compile(r'<div[^>]*class="[^"]*route-inner[^"]*"[^>]*>.*?</div>', re.DOTALL)
+            matches = route_inner_pattern.findall(page_content)
+            
             if matches:
-                print(f"Found {len(matches)} divs using regex pattern")
+                print(f"Found {len(matches)} divs using lenient regex pattern")
                 results = matches
             else:
-                print("No divs found using regex extraction")
+                print("Still no matches found")
 
         print(f"Scraping complete. Found {len(results)} route divs.")
         return results
@@ -120,9 +104,3 @@ def scrape_moovit_routes(url):
     except Exception as e:
         print(f"An error occurred during scraping: {str(e)}")
         raise
-
-    finally:
-        # Ensure the browser is closed
-        if 'driver' in locals():
-            print("Closing WebDriver...")
-            driver.quit()
