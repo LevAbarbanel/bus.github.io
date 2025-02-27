@@ -45,9 +45,8 @@ def scrape_moovit_routes(url):
     results = []
 
     try:
-        # For deployment platforms that have their own Chrome binary
-      driver = webdriver.Chrome(options=chrome_options)
-
+        # Let Chrome find a compatible driver automatically
+        driver = webdriver.Chrome(options=chrome_options)
 
         # Execute CDP command to modify navigator.webdriver flag
         driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
